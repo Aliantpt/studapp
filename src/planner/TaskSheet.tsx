@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTerms } from '../profile/context'
-import { addDays } from './dates'
+import { loadSchedule } from '../schedule/storage'
+import { nextOccurrence } from '../schedule/week'
+import { addDays, dueLabel } from './dates'
 import type { Priority, Task, TaskDraft } from './types'
 
 type Props = {
@@ -86,6 +88,13 @@ function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onC
   }
 
   const tomorrowKey = addDays(todayKey, 1)
+  const [schedule] = useState(loadSchedule)
+  const [openedAt] = useState(() => new Date())
+  const allSubjects = [...new Set([...subjects, ...schedule.lessons.map((l) => l.subject)])].sort((a, b) =>
+    a.localeCompare(b, 'ru'),
+  )
+  // срок «к следующему уроку/паре» по расписанию
+  const next = nextOccurrence(schedule.lessons, draft.subject, openedAt, schedule.flip)
   const isNew = editing === 'new'
 
   return (
@@ -119,7 +128,7 @@ function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onC
           autoCapitalize="sentences"
         />
         <datalist id={`${ids}-subjects`}>
-          {subjects.map((s) => (
+          {allSubjects.map((s) => (
             <option key={s} value={s} />
           ))}
         </datalist>
@@ -127,7 +136,17 @@ function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onC
 
       <fieldset className="field">
         <legend className="field-label">Срок</legend>
-        <div className="chips">
+        <div className="chips chips-wrap">
+          {next && (
+            <button
+              type="button"
+              className="chip"
+              aria-pressed={draft.due === next.due && draft.time === next.time}
+              onClick={() => setDraft((d) => ({ ...d, due: next.due, time: next.time }))}
+            >
+              {terms.nextLesson}
+            </button>
+          )}
           <button
             type="button"
             className="chip"
@@ -162,6 +181,11 @@ function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onC
             onChange={(e) => set('time', e.target.value || null)}
           />
         </div>
+        {next && (
+          <span className="field-hint">
+            {terms.nextLessonHint}: {dueLabel(next, todayKey)}
+          </span>
+        )}
       </fieldset>
 
       <fieldset className="field">

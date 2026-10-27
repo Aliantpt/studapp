@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { ChevronDown, NotebookPen, Plus } from 'lucide-react'
 import { dayLabel, remindAt } from './dates'
 import { askPermission, notifyStatus, useReminders } from './reminders'
 import { useTasks } from './storage'
 import { useTerms } from '../profile/context'
+import { Toast } from '../ui/Toast'
+import { useToast } from '../ui/useToast'
 import { TaskItem } from './TaskItem'
 import { TaskSheet } from './TaskSheet'
 import type { Task, TaskDraft } from './types'
 import { buildView, counts, type ViewId } from './views'
-
-type Toast = { text: string; undo?: () => void }
 
 const views: { id: ViewId; label: string }[] = [
   { id: 'today', label: 'Сегодня' },
@@ -33,17 +33,11 @@ export function PlannerScreen({ todayKey, now }: Props) {
   const [view, setView] = useState<ViewId>('today')
   const [editing, setEditing] = useState<Task | 'new' | null>(null)
   const [showDone, setShowDone] = useState(false)
-  const [toast, setToast] = useState<Toast | null>(null)
+  const [toast, setToast] = useToast()
   const terms = useTerms()
 
   const markReminded = useCallback((id: string, at: number) => update(id, { remindedAt: at }), [update])
   useReminders(tasks, markReminded)
-
-  useEffect(() => {
-    if (!toast) return
-    const timer = window.setTimeout(() => setToast(null), 5000)
-    return () => window.clearTimeout(timer)
-  }, [toast])
 
   const data = useMemo(() => buildView(view, tasks, todayKey, now), [view, tasks, todayKey, now])
   const badge = useMemo(() => counts(tasks, todayKey, now), [tasks, todayKey, now])
@@ -181,25 +175,7 @@ export function PlannerScreen({ todayKey, now }: Props) {
         onClose={() => setEditing(null)}
       />
 
-      <div className="toast-slot" aria-live="polite">
-        {toast && (
-          <div className="toast">
-            <span>{toast.text}</span>
-            {toast.undo && (
-              <button
-                type="button"
-                className="toast-action"
-                onClick={() => {
-                  toast.undo?.()
-                  setToast(null)
-                }}
-              >
-                Вернуть
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   )
 }
