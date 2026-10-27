@@ -1,3 +1,5 @@
+import { isNative } from '../native/platform'
+import { shareNative } from '../native/share'
 import { imageSize } from './image'
 
 // минимальный PDF: каждая страница — одна JPEG-картинка на весь лист, без сторонних библиотек
@@ -61,6 +63,7 @@ export function sharePdf(pdf: Blob, name: string) {
 }
 
 export async function shareFile(blob: Blob, fileName: string, title = fileName) {
+  if (isNative) return shareNative(blob, fileName, title)
   const file = new File([blob], fileName, { type: blob.type })
   if (navigator.canShare?.({ files: [file] })) {
     try {

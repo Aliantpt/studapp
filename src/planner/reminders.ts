@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { remindAt } from './dates'
+import { isNative } from '../native/platform'
+import { nativeStatus, reminderBody, requestNative, syncNative } from '../native/notifications'
+import { loadTasks } from './storage'
 import type { Task } from './types'
 
 // пропущенное напоминание показываем, только если опоздали не сильно
@@ -9,11 +12,18 @@ const TICK = 15_000
 export type NotifyStatus = 'granted' | 'default' | 'denied' | 'unsupported'
 
 export function notifyStatus(): NotifyStatus {
+  if (isNative) return nativeStatus()
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return 'unsupported'
   return Notification.permission
 }
 
 export async function askPermission(): Promise<NotifyStatus> {
+  if (isNative) {
+    const status = nativeStatus() === 'default' ? await requestNative() : nativeStatus()
+    // разрешили только что — ставим напоминания, которые до этого не ставились
+    if (status === 'granted') syncNative(loadTasks())
+    return status
+  }
   const status = notifyStatus()
   if (status !== 'default') return status
   try {
@@ -32,7 +42,7 @@ export async function permissionProblem(): Promise<string | null> {
 }
 
 async function show(task: Task) {
-  const body = [task.subject, task.time ? `срок в ${task.time}` : 'срок сегодня'].filter(Boolean).join(', ')
+  const body = reminderBody(task)
   const options: NotificationOptions = {
     body,
     tag: task.id,
@@ -56,6 +66,8 @@ export function useReminders(tasks: Task[], markReminded: (id: string, at: numbe
   })
 
   useEffect(() => {
+    // в приложении напоминания расписывает iOS, см. native/notifications
+    if (isNative) return
     const check = () => {
       if (notifyStatus() !== 'granted') return
       const now = Date.now()

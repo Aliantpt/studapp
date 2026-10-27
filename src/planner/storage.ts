@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { syncNative } from '../native/notifications'
 import type { Task, TaskDraft } from './types'
 
 const KEY = 'studapp.tasks.v1'
@@ -27,7 +28,10 @@ function newId(): string {
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>(loadTasks)
 
-  useEffect(() => save(tasks), [tasks])
+  useEffect(() => {
+    save(tasks)
+    syncNative(tasks)
+  }, [tasks])
 
   // синк между вкладками
   useEffect(() => {

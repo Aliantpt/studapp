@@ -3,11 +3,13 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // gh-pages отдаёт сайт из /studapp/, отсюда и base
-export default defineConfig({
-  base: '/studapp/',
+// --mode native — сборка для приложения: файлы лежат внутри, sw не нужен
+export default defineConfig(({ mode }) => ({
+  base: mode === 'native' ? './' : '/studapp/',
   plugins: [
     react(),
     VitePWA({
+      disable: mode === 'native',
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       workbox: {
@@ -34,4 +36,4 @@ export default defineConfig({
       },
     }),
   ],
-})
+}))

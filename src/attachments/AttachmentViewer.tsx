@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ExternalLink, FileText, Share2 } from 'lucide-react'
+import { isNative } from '../native/platform'
 import { buildPdf, shareFile, sharePdf } from '../scanner/pdf'
 import type { Scan } from '../scanner/types'
 import { useObjectUrl } from '../ui/useObjectUrl'
@@ -110,8 +111,9 @@ function FileBody({ file }: { file: FileAttachment }) {
           </div>
         )}
       </div>
-      <div className="flow-actions flow-more">
-        {url ? (
+      <div className={isNative ? 'flow-actions' : 'flow-actions flow-more'}>
+        {/* в приложении blob-ссылку открыть негде, файл смотрят через «Поделиться» */}
+        {isNative ? null : url ? (
           <a className="btn btn-ghost" href={url} target="_blank" rel="noopener">
             <ExternalLink size={18} aria-hidden="true" /> Открыть
           </a>
@@ -122,7 +124,7 @@ function FileBody({ file }: { file: FileAttachment }) {
         )}
         <button
           type="button"
-          className="btn btn-primary"
+          className={isNative ? 'btn btn-primary btn-wide' : 'btn btn-primary'}
           disabled={!blob}
           onClick={() => blob && void shareFile(blob, file.name)}
         >

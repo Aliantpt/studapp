@@ -1,0 +1,34 @@
+name: ios
+
+# проверочная сборка под iOS на маке от GitHub: если тут зелёное, проект откроется и соберётся в Xcode
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ios
+      - name: xcodebuild (симулятор, без подписи)
+        run: |
+          xcodebuild -version
+          xcodebuild build \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO | tail -40
+          test ${PIPESTATUS[0]} -eq 0
