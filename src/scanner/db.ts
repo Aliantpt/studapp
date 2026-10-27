@@ -1,23 +1,33 @@
 import type { Scan } from './types'
 
-// картинки тяжёлые для localStorage, поэтому сканы живут в IndexedDB
+// картинки тяжёлые для localStorage, поэтому сканы и файлы живут в IndexedDB
 const DB = 'studapp'
-const STORE = 'scans'
+const STORES = ['scans', 'files'] as const
+type StoreName = (typeof STORES)[number]
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 1)
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'id' })
+    // v2: добавилось хранилище файлов для вложений
+    const req = indexedDB.open(DB, 2)
+    req.onupgradeneeded = () => {
+      for (const name of STORES) {
+        if (!req.result.objectStoreNames.contains(name)) req.result.createObjectStore(name, { keyPath: 'id' })
+      }
+    }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
   })
 }
 
-async function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+export async function run<T>(
+  store: StoreName,
+  mode: IDBTransactionMode,
+  fn: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
   const db = await open()
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, mode)
-    const req = fn(tx.objectStore(STORE))
+    const tx = db.transaction(store, mode)
+    const req = fn(tx.objectStore(store))
     tx.oncomplete = () => {
       db.close()
       resolve(req.result)
@@ -30,9 +40,9 @@ async function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => I
 }
 
 export const scansDb = {
-  all: () => run<Scan[]>('readonly', (s) => s.getAll() as IDBRequest<Scan[]>),
-  put: (scan: Scan) => run('readwrite', (s) => s.put(scan)),
-  remove: (id: string) => run('readwrite', (s) => s.delete(id)),
+  all: () => run<Scan[]>('scans', 'readonly', (s) => s.getAll() as IDBRequest<Scan[]>),
+  put: (scan: Scan) => run('scans', 'readwrite', (s) => s.put(scan)),
+  remove: (id: string) => run('scans', 'readwrite', (s) => s.delete(id)),
 }
 
 /** просим браузер не чистить хранилище при нехватке места */

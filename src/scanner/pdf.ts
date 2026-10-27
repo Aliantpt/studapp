@@ -56,18 +56,21 @@ export async function buildPdf(pages: Blob[]): Promise<Blob> {
 }
 
 /** отдаём PDF через «Поделиться», а если нельзя — просто скачиваем */
-export async function sharePdf(pdf: Blob, name: string) {
-  const fileName = `${name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'scan'}.pdf`
-  const file = new File([pdf], fileName, { type: 'application/pdf' })
+export function sharePdf(pdf: Blob, name: string) {
+  return shareFile(pdf, `${name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'scan'}.pdf`, name)
+}
+
+export async function shareFile(blob: Blob, fileName: string, title = fileName) {
+  const file = new File([blob], fileName, { type: blob.type })
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: name })
+      await navigator.share({ files: [file], title })
       return
     } catch (e) {
       if ((e as Error).name === 'AbortError') return
     }
   }
-  const url = URL.createObjectURL(pdf)
+  const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = fileName

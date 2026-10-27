@@ -1,4 +1,4 @@
-import { Bell, Check } from 'lucide-react'
+import { Bell, Check, Paperclip } from 'lucide-react'
 import { dueLabel, isOverdue } from './dates'
 import type { Task } from './types'
 
@@ -15,6 +15,7 @@ type Props = {
 export function TaskItem({ task, todayKey, now, onToggle, onOpen, timeOnly = false }: Props) {
   const overdue = isOverdue(task, now)
   const due = timeOnly ? task.time : dueLabel(task, todayKey)
+  const files = task.attachments?.length ?? 0
 
   return (
     <li className={task.done ? 'task task-done' : 'task'}>
@@ -36,6 +37,12 @@ export function TaskItem({ task, todayKey, now, onToggle, onOpen, timeOnly = fal
           {task.subject && <span className="task-subject">{task.subject}</span>}
           {due && <span className={overdue ? 'task-due task-due-late' : 'task-due'}>{due}</span>}
           {task.remind !== null && !task.done && <Bell size={14} aria-label="С напоминанием" />}
+          {files > 0 && (
+            <span className="task-files" aria-label={`Вложений: ${files}`}>
+              <Paperclip size={14} aria-hidden="true" />
+              {files}
+            </span>
+          )}
         </span>
       </button>
     </li>

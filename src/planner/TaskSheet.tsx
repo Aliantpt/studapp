@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { AttachmentsField } from '../attachments/AttachmentsField'
 import { useTerms } from '../profile/context'
 import { loadSchedule } from '../schedule/storage'
 import { nextOccurrence } from '../schedule/calendar'
@@ -8,6 +9,8 @@ import type { Priority, Task, TaskDraft } from './types'
 type Props = {
   /** null — окно закрыто, 'new' — новое задание */
   editing: Task | 'new' | null
+  /** что подставить в новое задание, например скан из сканера */
+  preset?: Partial<TaskDraft>
   todayKey: string
   subjects: string[]
   onSave: (draft: TaskDraft) => void
@@ -31,7 +34,16 @@ const reminders: { value: string; label: string }[] = [
 ]
 
 function emptyDraft(todayKey: string): TaskDraft {
-  return { title: '', subject: '', due: todayKey, time: null, priority: 'normal', remind: null, note: '' }
+  return {
+    title: '',
+    subject: '',
+    due: todayKey,
+    time: null,
+    priority: 'normal',
+    remind: null,
+    note: '',
+    attachments: [],
+  }
 }
 
 export function TaskSheet({ editing, onClose, ...rest }: Props) {
@@ -50,7 +62,10 @@ export function TaskSheet({ editing, onClose, ...rest }: Props) {
       ref={dialog}
       className="sheet"
       aria-labelledby={titleId}
-      onClose={onClose}
+      onClose={(e) => {
+        // close от окна просмотра вложения сюда не относится
+        if (e.target === e.currentTarget) onClose()
+      }}
       onClick={(e) => {
         // тап по затемнению закрывает окно
         if (e.target === e.currentTarget) onClose()
@@ -72,8 +87,10 @@ export function TaskSheet({ editing, onClose, ...rest }: Props) {
 
 type FormProps = Omit<Props, 'editing'> & { editing: Task | 'new'; titleId: string }
 
-function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onClose }: FormProps) {
-  const [draft, setDraft] = useState<TaskDraft>(() => (editing === 'new' ? emptyDraft(todayKey) : { ...editing }))
+function SheetForm({ editing, preset, titleId, todayKey, subjects, onSave, onDelete, onClose }: FormProps) {
+  const [draft, setDraft] = useState<TaskDraft>(() =>
+    editing === 'new' ? { ...emptyDraft(todayKey), ...preset } : { ...editing, attachments: editing.attachments ?? [] },
+  )
   const ids = useId()
   const terms = useTerms()
 
@@ -234,6 +251,18 @@ function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onC
           placeholder="Страницы, ссылки, что уточнить"
         />
       </label>
+
+      <AttachmentsField
+        value={draft.attachments ?? []}
+        subject={draft.subject.trim()}
+        onAdd={(items) =>
+          setDraft((d) => {
+            const have = new Set((d.attachments ?? []).map((a) => a.id))
+            return { ...d, attachments: [...(d.attachments ?? []), ...items.filter((a) => !have.has(a.id))] }
+          })
+        }
+        onRemove={(id) => setDraft((d) => ({ ...d, attachments: (d.attachments ?? []).filter((a) => a.id !== id) }))}
+      />
 
       <div className="sheet-actions">
         {editing !== 'new' && (

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, Images, ScanLine, Search } from 'lucide-react'
+import { linkedTo } from '../attachments/links'
+import { TaskPicker } from '../attachments/TaskPicker'
+import { permissionProblem } from '../planner/reminders'
+import { useTasks } from '../planner/storage'
+import { TaskSheet } from '../planner/TaskSheet'
+import type { Task, TaskDraft } from '../planner/types'
 import { useTerms } from '../profile/context'
+import { nextOccurrence } from '../schedule/calendar'
+import { loadSchedule } from '../schedule/storage'
 import { Toast } from '../ui/Toast'
 import { useObjectUrl } from '../ui/useObjectUrl'
 import { useToast } from '../ui/useToast'
@@ -11,8 +19,11 @@ import type { Scan } from './types'
 
 const shortDate = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' })
 
-export function ScannerScreen() {
+export function ScannerScreen({ todayKey }: { todayKey: string }) {
   const terms = useTerms()
+  const { tasks, add, update } = useTasks()
+  const [picking, setPicking] = useState(false)
+  const [creating, setCreating] = useState<Partial<TaskDraft> | null>(null)
   const [scans, setScans] = useState<Scan[] | null>(null)
   const [query, setQuery] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -60,16 +71,58 @@ export function ScannerScreen() {
 
   const remove = async (scan: Scan) => {
     setViewing(null)
+    // скан пропадает и из заданий, «Вернуть» прикрепит обратно
+    const touched = tasks.filter((t) => linkedTo(t, scan.id))
+    for (const t of touched) update(t.id, { attachments: t.attachments?.filter((a) => a.id !== scan.id) })
     setScans((list) => list?.filter((s) => s.id !== scan.id) ?? null)
     await scansDb.remove(scan.id).catch(() => undefined)
     setToast({
       text: 'Скан удалён',
       undo: () => {
         void scansDb.put(scan)
+        for (const t of touched) update(t.id, { attachments: t.attachments })
         setScans((list) => [...(list ?? []), scan].sort((a, b) => b.createdAt - a.createdAt))
       },
     })
   }
+
+  const toggleLink = (task: Task) => {
+    if (!viewing) return
+    const list = task.attachments ?? []
+    update(task.id, {
+      attachments: linkedTo(task, viewing.id)
+        ? list.filter((a) => a.id !== viewing.id)
+        : [...list, { kind: 'scan', id: viewing.id }],
+    })
+  }
+
+  const startTask = () => {
+    if (!viewing) return
+    setPicking(false)
+    // название «Скан 27 октября» для задания бесполезно, такое не подставляем
+    const title = /^Скан(\s|$)/.test(viewing.title) ? '' : viewing.title
+    const next = viewing.subject ? nextOccurrence(loadSchedule(), viewing.subject, new Date()) : null
+    setCreating({
+      title,
+      subject: viewing.subject,
+      attachments: [{ kind: 'scan', id: viewing.id }],
+      ...(next ?? {}),
+    })
+  }
+
+  const saveTask = async (draft: TaskDraft) => {
+    setCreating(null)
+    add(draft)
+    setToast({ text: 'Задание создано, скан прикреплён' })
+    if (draft.remind !== null) {
+      const problem = await permissionProblem()
+      if (problem) setToast({ text: problem })
+    }
+  }
+
+  const subjects = [...new Set([...tasks, ...(scans ?? [])].map((x) => x.subject).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, 'ru'),
+  )
 
   return (
     <>
@@ -140,7 +193,40 @@ export function ScannerScreen() {
       <input ref={gallery} type="file" accept="image/*" hidden onChange={(e) => pick(e.currentTarget)} />
 
       {file && <ScanFlow first={file} onSave={save} onCancel={() => setFile(null)} />}
-      {viewing && <ScanViewer scan={viewing} onChange={change} onDelete={remove} onClose={() => setViewing(null)} />}
+      {viewing && (
+        <ScanViewer
+          scan={viewing}
+          onChange={change}
+          onDelete={remove}
+          onClose={() => setViewing(null)}
+          linked={tasks.filter((t) => linkedTo(t, viewing.id))}
+          todayKey={todayKey}
+          onLink={() => setPicking(true)}
+          onUnlink={toggleLink}
+          onCreateTask={startTask}
+        />
+      )}
+
+      <TaskPicker
+        open={picking && !!viewing}
+        tasks={tasks}
+        scanId={viewing?.id ?? ''}
+        subject={viewing?.subject ?? ''}
+        todayKey={todayKey}
+        onToggle={toggleLink}
+        onCreate={startTask}
+        onClose={() => setPicking(false)}
+      />
+
+      <TaskSheet
+        editing={creating ? 'new' : null}
+        preset={creating ?? undefined}
+        todayKey={todayKey}
+        subjects={subjects}
+        onSave={saveTask}
+        onDelete={() => setCreating(null)}
+        onClose={() => setCreating(null)}
+      />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>

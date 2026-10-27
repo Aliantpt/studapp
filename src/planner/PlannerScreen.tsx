@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ChevronDown, NotebookPen, Plus } from 'lucide-react'
 import { dayLabel, remindAt } from './dates'
-import { askPermission, notifyStatus, useReminders } from './reminders'
+import { notifyStatus, permissionProblem, useReminders } from './reminders'
 import { useTasks } from './storage'
 import { useTerms } from '../profile/context'
 import { Toast } from '../ui/Toast'
@@ -64,12 +64,8 @@ export function PlannerScreen({ todayKey, now }: Props) {
     }
 
     if (draft.remind !== null) {
-      const status = await askPermission()
-      if (status === 'unsupported') {
-        setToast({ text: 'Чтобы приходили напоминания, установите приложение на главный экран' })
-      } else if (status === 'denied') {
-        setToast({ text: 'Уведомления выключены в настройках браузера, напоминание не придёт' })
-      }
+      const problem = await permissionProblem()
+      if (problem) setToast({ text: problem })
     }
   }
 

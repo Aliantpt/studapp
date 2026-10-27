@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { ArrowLeft, Share2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Paperclip, Plus, Share2, Trash2, X } from 'lucide-react'
+import { dueLabel } from '../planner/dates'
+import type { Task } from '../planner/types'
 import { useTerms } from '../profile/context'
 import { useObjectUrl } from '../ui/useObjectUrl'
 import { buildPdf, sharePdf } from './pdf'
@@ -10,9 +12,15 @@ type Props = {
   onChange: (scan: Scan) => void
   onDelete: (scan: Scan) => void
   onClose: () => void
+  /** задания, к которым прикреплён скан */
+  linked: Task[]
+  todayKey: string
+  onLink: () => void
+  onUnlink: (task: Task) => void
+  onCreateTask: () => void
 }
 
-export function ScanViewer({ scan, onChange, onDelete, onClose }: Props) {
+export function ScanViewer({ scan, onChange, onDelete, onClose, linked, todayKey, onLink, onUnlink, onCreateTask }: Props) {
   const terms = useTerms()
   const [title, setTitle] = useState(scan.title)
   const [subject, setSubject] = useState(scan.subject)
@@ -61,6 +69,26 @@ export function ScanViewer({ scan, onChange, onDelete, onClose }: Props) {
           aria-label={terms.subjectLabel}
         />
 
+        {linked.length > 0 && (
+          <ul className="linked" aria-label="Прикреплён к заданиям">
+            {linked.map((t) => (
+              <li key={t.id} className={t.done ? 'linked-item linked-done' : 'linked-item'}>
+                <Paperclip size={15} aria-hidden="true" />
+                <span className="linked-title">{t.title}</span>
+                <span className="linked-due">{dueLabel(t, todayKey)}</span>
+                <button
+                  type="button"
+                  className="linked-remove"
+                  aria-label={`Открепить от «${t.title}»`}
+                  onClick={() => onUnlink(t)}
+                >
+                  <X size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <ol className="viewer-pages">
           {scan.pages.map((page, i) => (
             <li key={i}>
@@ -70,7 +98,15 @@ export function ScanViewer({ scan, onChange, onDelete, onClose }: Props) {
         </ol>
       </div>
 
-      <div className="flow-actions">
+      <div className="flow-actions flow-actions-stack">
+        <div className="flow-more">
+          <button type="button" className="btn btn-ghost" onClick={onLink}>
+            <Paperclip size={18} aria-hidden="true" /> Прикрепить
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={onCreateTask}>
+            <Plus size={18} aria-hidden="true" /> Новое задание
+          </button>
+        </div>
         <button type="button" className="btn btn-primary btn-wide" disabled={busy} onClick={share}>
           <Share2 size={18} aria-hidden="true" /> {busy ? 'Собираю PDF…' : 'Поделиться PDF'}
         </button>

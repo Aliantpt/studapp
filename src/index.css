@@ -668,7 +668,8 @@ textarea.input {
   position: fixed;
   left: 50%;
   bottom: calc(100px + env(safe-area-inset-bottom));
-  z-index: 3;
+  /* выше полноэкранных окон сканера */
+  z-index: 12;
   translate: -50% 0;
   width: min(calc(100% - 24px), 536px);
   pointer-events: none;
@@ -1726,4 +1727,351 @@ textarea.input {
   .spinner {
     animation-duration: 2.4s;
   }
+}
+
+/* ---------- вложения ---------- */
+
+.chip-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.field-error {
+  color: var(--danger);
+}
+
+.task-files {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.attach-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attach {
+  position: relative;
+  min-width: 0;
+}
+
+.attach-open,
+.strip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.attach-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  margin-bottom: 4px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.attach-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.attach-ext {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--green);
+}
+
+.attach-name,
+.attach-meta {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.attach-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.attach-meta {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.attach-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: #fff;
+  background: rgb(0 0 0 / 0.55);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.scan-strip {
+  display: flex;
+  gap: 10px;
+  margin: 0 -20px;
+  padding: 2px 20px 4px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.scan-strip li {
+  flex: 0 0 92px;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.strip-item[aria-pressed='true'] .attach-thumb {
+  border: 2px solid var(--green);
+}
+
+.strip-check {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--on-green);
+  background: var(--green);
+  border-radius: 50%;
+}
+
+/* просмотр вложения поверх окна задания */
+.viewer-dialog {
+  width: 100%;
+  max-width: 560px;
+  height: 100dvh;
+  max-height: none;
+  margin: 0 auto;
+  padding: calc(8px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  color: var(--ink);
+  background: var(--paper);
+  border: none;
+}
+
+.viewer-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer-dialog::backdrop {
+  background: var(--paper);
+}
+
+.viewer-dialog-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.viewer-dialog-body {
+  flex: 1;
+  margin: 0 0 12px;
+}
+
+.file-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 24px;
+  padding: 32px 20px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+
+.file-card-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 6px;
+  color: var(--green);
+  background: var(--green-soft);
+  border-radius: 18px;
+}
+
+.file-card-ext {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--green);
+}
+
+.file-card-name {
+  max-width: 100%;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.file-card-size {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+a.btn {
+  text-decoration: none;
+}
+
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+}
+
+.flow-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* к каким заданиям прикреплён скан */
+.linked {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.linked-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px 0 12px;
+  font-size: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.linked-item > svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.linked-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.linked-done .linked-title {
+  color: var(--ink-soft);
+  text-decoration: line-through;
+}
+
+.linked-due {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.linked-remove {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 55dvh;
+  margin: 0 -20px;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 20px;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.pick-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pick-check {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: transparent;
+  border: 2px solid var(--ink-soft);
+  border-radius: 50%;
+}
+
+.pick-row[aria-pressed='true'] .pick-check {
+  color: var(--on-green);
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.flow-actions-stack .flow-more .btn {
+  padding: 0 12px;
+  font-size: 15px;
+  white-space: nowrap;
 }

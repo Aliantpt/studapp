@@ -23,6 +23,14 @@ export async function askPermission(): Promise<NotifyStatus> {
   }
 }
 
+/** просим разрешение на уведомления; если не вышло — текст для тоста */
+export async function permissionProblem(): Promise<string | null> {
+  const status = await askPermission()
+  if (status === 'unsupported') return 'Чтобы приходили напоминания, установите приложение на главный экран'
+  if (status === 'denied') return 'Уведомления выключены в настройках браузера, напоминание не придёт'
+  return null
+}
+
 async function show(task: Task) {
   const body = [task.subject, task.time ? `срок в ${task.time}` : 'срок сегодня'].filter(Boolean).join(', ')
   const options: NotificationOptions = {

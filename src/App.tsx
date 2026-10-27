@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { CalendarDays, MessagesSquare, NotebookPen, ScanLine, UserRound, type LucideIcon } from 'lucide-react'
+import { pruneFiles } from './attachments/files'
 import { toDateKey } from './planner/dates'
 import { PlannerScreen } from './planner/PlannerScreen'
+import { loadTasks } from './planner/storage'
 import { TermsContext } from './profile/context'
 import { ScannerScreen } from './scanner/ScannerScreen'
 import { ScheduleScreen } from './schedule/ScheduleScreen'
@@ -89,6 +91,9 @@ function Main({ profile, onSaveProfile }: MainProps) {
   const today = new Date(now)
   const ActiveIcon = active.icon
 
+  // при запуске выкидываем файлы, которые остались без задания
+  useEffect(() => void pruneFiles(loadTasks()), [])
+
   return (
     <TermsContext.Provider value={t}>
       <div className="app">
@@ -107,7 +112,7 @@ function Main({ profile, onSaveProfile }: MainProps) {
           ) : active.id === 'schedule' ? (
             <ScheduleScreen todayKey={toDateKey(today)} now={now} />
           ) : active.id === 'scanner' ? (
-            <ScannerScreen />
+            <ScannerScreen todayKey={toDateKey(today)} />
           ) : (
             <div className="empty">
               <span className="empty-icon" aria-hidden="true">
