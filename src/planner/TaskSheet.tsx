@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useTerms } from '../profile/context'
 import { addDays } from './dates'
 import type { Priority, Task, TaskDraft } from './types'
 
@@ -72,6 +73,7 @@ type FormProps = Omit<Props, 'editing'> & { editing: Task | 'new'; titleId: stri
 function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onClose }: FormProps) {
   const [draft, setDraft] = useState<TaskDraft>(() => (editing === 'new' ? emptyDraft(todayKey) : { ...editing }))
   const ids = useId()
+  const terms = useTerms()
 
   const set = <K extends keyof TaskDraft>(key: K, value: TaskDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }))
@@ -99,7 +101,7 @@ function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onC
           className="input"
           value={draft.title}
           onChange={(e) => set('title', e.target.value)}
-          placeholder="Например, решить № 245–250"
+          placeholder={terms.taskPlaceholder}
           required
           autoFocus={isNew}
           enterKeyHint="done"
@@ -107,12 +109,12 @@ function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onC
       </label>
 
       <label className="field">
-        <span className="field-label">Предмет</span>
+        <span className="field-label">{terms.subjectLabel}</span>
         <input
           className="input"
           value={draft.subject}
           onChange={(e) => set('subject', e.target.value)}
-          placeholder="Матанализ"
+          placeholder={terms.subjectPlaceholder}
           list={`${ids}-subjects`}
           autoCapitalize="sentences"
         />

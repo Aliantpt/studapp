@@ -3,6 +3,7 @@ import { ChevronDown, NotebookPen, Plus } from 'lucide-react'
 import { dayLabel, remindAt } from './dates'
 import { askPermission, notifyStatus, useReminders } from './reminders'
 import { useTasks } from './storage'
+import { useTerms } from '../profile/context'
 import { TaskItem } from './TaskItem'
 import { TaskSheet } from './TaskSheet'
 import type { Task, TaskDraft } from './types'
@@ -17,8 +18,9 @@ const views: { id: ViewId; label: string }[] = [
   { id: 'all', label: 'Все' },
 ]
 
-const emptyText: Record<ViewId, { title: string; hint: string }> = {
-  today: { title: 'На сегодня всё чисто', hint: 'Запишите, что задали, и планер напомнит о сроке.' },
+const emptyText: Record<ViewId, { title: string; hint: string | null }> = {
+  // null — подставим подсказку под школу или вуз
+  today: { title: 'На сегодня всё чисто', hint: null },
   week: { title: 'На неделю ничего нет', hint: 'Задания на ближайшие семь дней появятся здесь.' },
   overdue: { title: 'Просроченных нет', hint: 'Всё сдано вовремя.' },
   all: { title: 'Заданий пока нет', hint: 'Добавьте первое задание, чтобы начать.' },
@@ -32,6 +34,7 @@ export function PlannerScreen({ todayKey, now }: Props) {
   const [editing, setEditing] = useState<Task | 'new' | null>(null)
   const [showDone, setShowDone] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
+  const terms = useTerms()
 
   const markReminded = useCallback((id: string, at: number) => update(id, { remindedAt: at }), [update])
   useReminders(tasks, markReminded)
@@ -114,7 +117,7 @@ export function PlannerScreen({ todayKey, now }: Props) {
             <NotebookPen size={28} strokeWidth={1.75} />
           </span>
           <p className="empty-title">{emptyText[view].title}</p>
-          <p className="empty-hint">{emptyText[view].hint}</p>
+          <p className="empty-hint">{emptyText[view].hint ?? terms.plannerEmptyHint}</p>
           {view !== 'overdue' && (
             <button type="button" className="btn btn-primary empty-action" onClick={() => setEditing('new')}>
               Добавить задание
