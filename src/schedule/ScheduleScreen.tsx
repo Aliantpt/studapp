@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, NotebookPen, Plus, Repeat } from 'lucide-react'
+import { useTasks } from '../planner/storage'
 import { useTerms } from '../profile/context'
 import { Toast } from '../ui/Toast'
 import { useToast } from '../ui/useToast'
-import { lessonsOn, minutesLeft, monthGrid, parseKey, progress, suggestTime } from './calendar'
+import { lessonsOn, minutesLeft, monthGrid, parseKey, progress, suggestTime, tasksByLesson } from './calendar'
 import { LessonSheet, type LessonEditing } from './LessonSheet'
 import { useSchedule } from './storage'
+import type { Task } from '../planner/types'
 import { dayNames, kindLabels, type Lesson, type LessonDraft } from './types'
 
 type Props = { todayKey: string; now: number }
@@ -25,10 +27,14 @@ export function ScheduleScreen({ todayKey, now }: Props) {
   })
   const [editing, setEditing] = useState<LessonEditing>(null)
   const [toast, setToast] = useToast()
+  const { tasks, update: updateTask } = useTasks()
+  // у какой пары раскрыт список заданий
+  const [openTasks, setOpenTasks] = useState<string | null>(null)
 
   const grid = useMemo(() => monthGrid(month.y, month.m), [month])
   const counts = useMemo(() => new Map(grid.map((k) => [k, lessonsOn(lessons, k).length])), [grid, lessons])
   const dayLessons = useMemo(() => lessonsOn(lessons, selected), [lessons, selected])
+  const lessonTasks = useMemo(() => tasksByLesson(dayLessons, tasks, selected), [dayLessons, tasks, selected])
   const subjects = useMemo(
     () => [...new Set(lessons.map((l) => l.subject))].sort((a, b) => a.localeCompare(b, 'ru')),
     [lessons],
@@ -165,34 +171,45 @@ export function ScheduleScreen({ todayKey, now }: Props) {
           {dayLessons.map((l, i) => {
             const p = isToday ? progress(l, nowTime) : null
             const past = (isToday && nowTime >= l.end) || selected < todayKey
+            const lt = lessonTasks.get(l.id) ?? []
             return (
               <li key={l.id} className={p !== null ? 'lesson lesson-now' : past ? 'lesson lesson-past' : 'lesson'}>
                 <div className="lesson-time">
                   <span className="lesson-start">{l.start}</span>
                   <span className="lesson-end">{l.end}</span>
                 </div>
-                <button
-                  type="button"
-                  className="lesson-card"
-                  onClick={() => setEditing({ mode: 'edit', lesson: l, date: selected })}
-                >
-                  <span className="lesson-num">{terms.lessonNumber(i + 1)}</span>
-                  <span className="lesson-subject">{l.subject}</span>
-                  <span className="lesson-meta">
-                    {l.kind && <span className="lesson-kind">{kindLabels[l.kind]}</span>}
-                    {l.room && <span>{l.room}</span>}
-                    {l.teacher && <span>{l.teacher}</span>}
-                    {l.repeat === 'weekly' && <Repeat size={14} aria-label="Повторяется каждую неделю" />}
-                  </span>
-                  {p !== null && (
-                    <span className="lesson-progress">
-                      <span className="lesson-progress-label">Идёт, осталось {minutesLeft(l.end, nowTime)} мин</span>
-                      <span className="lesson-bar" aria-hidden="true">
-                        <span style={{ width: `${Math.round(p * 100)}%` }} />
-                      </span>
+                <div className="lesson-card">
+                  <button
+                    type="button"
+                    className="lesson-main"
+                    onClick={() => setEditing({ mode: 'edit', lesson: l, date: selected })}
+                  >
+                    <span className="lesson-num">{terms.lessonNumber(i + 1)}</span>
+                    <span className="lesson-subject">{l.subject}</span>
+                    <span className="lesson-meta">
+                      {l.kind && <span className="lesson-kind">{kindLabels[l.kind]}</span>}
+                      {l.room && <span>{l.room}</span>}
+                      {l.teacher && <span>{l.teacher}</span>}
+                      {l.repeat === 'weekly' && <Repeat size={14} aria-label="Повторяется каждую неделю" />}
                     </span>
+                    {p !== null && (
+                      <span className="lesson-progress">
+                        <span className="lesson-progress-label">Идёт, осталось {minutesLeft(l.end, nowTime)} мин</span>
+                        <span className="lesson-bar" aria-hidden="true">
+                          <span style={{ width: `${Math.round(p * 100)}%` }} />
+                        </span>
+                      </span>
+                    )}
+                  </button>
+                  {lt.length > 0 && (
+                    <LessonTasks
+                      tasks={lt}
+                      open={openTasks === l.id}
+                      onToggleOpen={() => setOpenTasks((id) => (id === l.id ? null : l.id))}
+                      onToggleDone={(t) => updateTask(t.id, { done: !t.done })}
+                    />
                   )}
-                </button>
+                </div>
               </li>
             )
           })}
@@ -213,5 +230,49 @@ export function ScheduleScreen({ todayKey, now }: Props) {
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>
+  )
+}
+
+type LessonTasksProps = {
+  tasks: Task[]
+  open: boolean
+  onToggleOpen: () => void
+  onToggleDone: (task: Task) => void
+}
+
+/** свёрнутая строка «Задания: 2», по нажатию — короткий список с чекбоксами */
+function LessonTasks({ tasks, open, onToggleOpen, onToggleDone }: LessonTasksProps) {
+  const left = tasks.filter((t) => !t.done).length
+  return (
+    <div className="lesson-tasks">
+      <button
+        type="button"
+        className={left > 0 ? 'lesson-tasks-toggle' : 'lesson-tasks-toggle lesson-tasks-toggle-done'}
+        aria-expanded={open}
+        onClick={onToggleOpen}
+      >
+        {left > 0 ? <NotebookPen size={15} aria-hidden="true" /> : <Check size={15} aria-hidden="true" />}
+        <span>{left > 0 ? `Задания: ${left}` : 'Задания сделаны'}</span>
+        <ChevronDown size={16} className="done-chevron" aria-hidden="true" />
+      </button>
+      {open && (
+        <ul className="lesson-task-list">
+          {tasks.map((t) => (
+            <li key={t.id} className={t.done ? 'lesson-task lesson-task-done' : 'lesson-task'}>
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={t.done}
+                className="lesson-task-check"
+                onClick={() => onToggleDone(t)}
+              >
+                <Check size={12} strokeWidth={3} aria-hidden="true" />
+                <span>{t.title}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }

@@ -1093,16 +1093,96 @@ textarea.input {
 }
 
 .lesson-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   min-width: 0;
-  padding: 12px 16px 14px;
-  text-align: left;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 18px;
+  overflow: hidden;
+}
+
+.lesson-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 16px 14px;
+  text-align: left;
+  background: none;
+  border: none;
   cursor: pointer;
+}
+
+.lesson-tasks {
+  border-top: 1px solid var(--line);
+}
+
+.lesson-tasks-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lesson-tasks-toggle-done {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.lesson-tasks-toggle .done-chevron {
+  margin-left: auto;
+  color: var(--ink-soft);
+}
+
+.lesson-tasks-toggle[aria-expanded='true'] .done-chevron {
+  rotate: 180deg;
+}
+
+.lesson-task-list {
+  margin: 0;
+  padding: 0 16px 10px;
+  list-style: none;
+}
+
+.lesson-task-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 0;
+  font-size: 15px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lesson-task-check svg {
+  flex-shrink: 0;
+  box-sizing: content-box;
+  margin-top: 2px;
+  padding: 2px;
+  color: transparent;
+  border: 2px solid var(--ink-soft);
+  border-radius: 50%;
+}
+
+.lesson-task-done .lesson-task-check svg {
+  color: var(--on-green);
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.lesson-task-done span {
+  color: var(--ink-soft);
+  text-decoration: line-through;
 }
 
 .lesson-num {

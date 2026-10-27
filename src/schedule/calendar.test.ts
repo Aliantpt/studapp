@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { lessonsOn, monthGrid, mondayOf, nextOccurrence, occursOn, progress, suggestTime, weekday } from './calendar'
+import { lessonsOn, monthGrid, tasksByLesson, mondayOf, nextOccurrence, occursOn, progress, suggestTime, weekday } from './calendar'
+import type { Task } from '../planner/types'
 import type { Lesson } from './types'
 
 let seq = 0
@@ -70,5 +71,37 @@ describe('занятия', () => {
   it('прогресс текущего занятия', () => {
     expect(progress(once, '11:25')).toBeCloseTo(0.5)
     expect(progress(once, '12:10')).toBeNull()
+  })
+})
+
+describe('задания у пар', () => {
+  const task = (patch: Partial<Task>): Task => ({
+    id: String(++seq),
+    title: 't',
+    subject: 'Физика',
+    due: '2026-10-27',
+    time: null,
+    priority: 'normal',
+    remind: null,
+    note: '',
+    done: false,
+    createdAt: seq,
+    remindedAt: null,
+    ...patch,
+  })
+  const phys1 = lesson({ subject: 'Физика', start: '09:00' })
+  const phys2 = lesson({ subject: 'физика ', start: '12:40', end: '14:10' })
+  const math = lesson({ subject: 'Матанализ', start: '10:40', end: '12:10' })
+  const day = [phys1, math, phys2]
+
+  it('по предмету и дате, с учётом времени', () => {
+    const a = task({})
+    const b = task({ time: '12:40' })
+    const other = task({ subject: 'История' })
+    const tomorrow = task({ due: '2026-10-28' })
+    const map = tasksByLesson(day, [a, b, other, tomorrow], '2026-10-27')
+    expect(map.get(phys1.id)).toEqual([a])
+    expect(map.get(phys2.id)).toEqual([b])
+    expect(map.has(math.id)).toBe(false)
   })
 })

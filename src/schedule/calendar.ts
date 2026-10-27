@@ -1,4 +1,5 @@
 import { addDays, toDateKey } from '../planner/dates'
+import type { Task } from '../planner/types'
 import type { Lesson } from './types'
 
 export function parseKey(key: string): Date {
@@ -76,4 +77,20 @@ export function suggestTime(dayLessons: Lesson[], fallback: [string, string]): [
   const length = mins(last.end) - mins(last.start)
   const start = Math.min(mins(last.end) + 10, 23 * 60)
   return [fmt(start), fmt(Math.min(start + length, 23 * 60 + 59))]
+}
+
+/**
+ * задания, привязанные к парам дня: тот же предмет и срок в этот день.
+ * если пар по предмету несколько, задание идёт к паре с тем же временем, иначе к первой
+ */
+export function tasksByLesson(dayLessons: Lesson[], tasks: Task[], key: string): Map<string, Task[]> {
+  const result = new Map<string, Task[]>()
+  for (const task of tasks) {
+    if (task.due !== key || !task.subject.trim()) continue
+    const same = dayLessons.filter((l) => sameSubject(l.subject, task.subject))
+    if (!same.length) continue
+    const target = same.find((l) => l.start === task.time) ?? same[0]
+    result.set(target.id, [...(result.get(target.id) ?? []), task])
+  }
+  return result
 }
