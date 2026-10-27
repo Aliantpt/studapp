@@ -10,13 +10,17 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+      workbox: {
+        // в кэш только кириллица и латиница, остальные сабсеты шрифтов не нужны
+        globPatterns: ['**/*.{js,css,html,png,svg}', '**/*-{cyrillic,latin}-wght-normal-*.woff2'],
+      },
       manifest: {
         name: 'StudApp — помощник студента',
         short_name: 'StudApp',
         description: 'Планер домашних заданий, расписание и учебный помощник',
         lang: 'ru',
-        theme_color: '#4f46e5',
-        background_color: '#f5f5fa',
+        theme_color: '#17855a',
+        background_color: '#f2f6f1',
         display: 'standalone',
         start_url: '/studapp/',
         scope: '/studapp/',
