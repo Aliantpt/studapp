@@ -1,18 +1,39 @@
 import { useCallback, useEffect, useState } from 'react'
+import { addDays, toDateKey } from '../planner/dates'
 import type { Lesson, LessonDraft } from './types'
 
-const KEY = 'studapp.schedule.v1'
+const KEY = 'studapp.schedule.v2'
+const OLD_KEY = 'studapp.schedule.v1'
 
-type Stored = { lessons: Lesson[]; flip: boolean }
+type OldLesson = Omit<Lesson, 'date' | 'repeat' | 'skip'> & { day: number }
 
-export function loadSchedule(): Stored {
+// первая версия хранила пары по дням недели с чёт/нечет — превращаем их в еженедельные повторы с этой недели
+function migrate(): Lesson[] {
+  try {
+    const raw = localStorage.getItem(OLD_KEY)
+    if (!raw) return []
+    const today = new Date()
+    const monday = addDays(toDateKey(today), 1 - (today.getDay() || 7))
+    const old = (JSON.parse(raw) as { lessons?: OldLesson[] }).lessons ?? []
+    return old.map(({ day, ...rest }) => ({
+      ...rest,
+      date: addDays(monday, day - 1),
+      repeat: 'weekly',
+      skip: [],
+    }))
+  } catch {
+    return []
+  }
+}
+
+export function loadSchedule(): Lesson[] {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return { lessons: [], flip: false, ...(JSON.parse(raw) as Partial<Stored>) }
+    if (raw) return JSON.parse(raw) as Lesson[]
   } catch {
     // битые данные — начинаем с чистого листа
   }
-  return { lessons: [], flip: false }
+  return migrate()
 }
 
 function newId(): string {
@@ -20,33 +41,40 @@ function newId(): string {
 }
 
 export function useSchedule() {
-  const [state, setState] = useState<Stored>(loadSchedule)
+  const [lessons, setLessons] = useState<Lesson[]>(loadSchedule)
 
   useEffect(() => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(state))
+      localStorage.setItem(KEY, JSON.stringify(lessons))
     } catch {
       // нет места — живём в памяти
     }
-  }, [state])
+  }, [lessons])
 
   const add = useCallback((draft: LessonDraft) => {
-    setState((s) => ({ ...s, lessons: [...s.lessons, { ...draft, id: newId(), createdAt: Date.now() }] }))
+    setLessons((list) => [...list, { ...draft, id: newId(), skip: [], createdAt: Date.now() }])
   }, [])
 
   const update = useCallback((id: string, draft: LessonDraft) => {
-    setState((s) => ({ ...s, lessons: s.lessons.map((l) => (l.id === id ? { ...l, ...draft } : l)) }))
+    setLessons((list) => list.map((l) => (l.id === id ? { ...l, ...draft } : l)))
   }, [])
 
   const remove = useCallback((id: string) => {
-    setState((s) => ({ ...s, lessons: s.lessons.filter((l) => l.id !== id) }))
+    setLessons((list) => list.filter((l) => l.id !== id))
+  }, [])
+
+  /** убрать из серии повторов один день */
+  const skipDay = useCallback((id: string, key: string) => {
+    setLessons((list) => list.map((l) => (l.id === id ? { ...l, skip: [...l.skip, key] } : l)))
+  }, [])
+
+  const unskipDay = useCallback((id: string, key: string) => {
+    setLessons((list) => list.map((l) => (l.id === id ? { ...l, skip: l.skip.filter((k) => k !== key) } : l)))
   }, [])
 
   const restore = useCallback((lesson: Lesson) => {
-    setState((s) => (s.lessons.some((l) => l.id === lesson.id) ? s : { ...s, lessons: [...s.lessons, lesson] }))
+    setLessons((list) => (list.some((l) => l.id === lesson.id) ? list : [...list, lesson]))
   }, [])
 
-  const toggleFlip = useCallback(() => setState((s) => ({ ...s, flip: !s.flip })), [])
-
-  return { lessons: state.lessons, flip: state.flip, add, update, remove, restore, toggleFlip }
+  return { lessons, add, update, remove, skipDay, unskipDay, restore }
 }

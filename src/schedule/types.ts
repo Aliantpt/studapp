@@ -1,12 +1,9 @@
 export type LessonKind = 'lecture' | 'seminar' | 'lab' | 'practice'
 
-/** all — каждую неделю, odd/even — только по нечётным / чётным */
-export type WeekRule = 'all' | 'odd' | 'even'
-
 export type Lesson = {
   id: string
-  /** 1 — понедельник … 7 — воскресенье */
-  day: number
+  /** YYYY-MM-DD — день занятия, для повторов — первый день серии */
+  date: string
   /** HH:MM */
   start: string
   end: string
@@ -14,11 +11,14 @@ export type Lesson = {
   room: string
   teacher: string
   kind: LessonKind | null
-  week: WeekRule
+  /** weekly — повторять каждую неделю в тот же день */
+  repeat: 'none' | 'weekly'
+  /** дни, которые удалили из серии повторов */
+  skip: string[]
   createdAt: number
 }
 
-export type LessonDraft = Omit<Lesson, 'id' | 'createdAt'>
+export type LessonDraft = Omit<Lesson, 'id' | 'createdAt' | 'skip'>
 
 export const kindLabels: Record<LessonKind, string> = {
   lecture: 'Лекция',

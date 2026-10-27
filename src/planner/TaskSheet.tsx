@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTerms } from '../profile/context'
 import { loadSchedule } from '../schedule/storage'
-import { nextOccurrence } from '../schedule/week'
+import { nextOccurrence } from '../schedule/calendar'
 import { addDays, dueLabel } from './dates'
 import type { Priority, Task, TaskDraft } from './types'
 
@@ -90,11 +90,11 @@ function SheetForm({ editing, titleId, todayKey, subjects, onSave, onDelete, onC
   const tomorrowKey = addDays(todayKey, 1)
   const [schedule] = useState(loadSchedule)
   const [openedAt] = useState(() => new Date())
-  const allSubjects = [...new Set([...subjects, ...schedule.lessons.map((l) => l.subject)])].sort((a, b) =>
+  const allSubjects = [...new Set([...subjects, ...schedule.map((l) => l.subject)])].sort((a, b) =>
     a.localeCompare(b, 'ru'),
   )
   // срок «к следующему уроку/паре» по расписанию
-  const next = nextOccurrence(schedule.lessons, draft.subject, openedAt, schedule.flip)
+  const next = nextOccurrence(schedule, draft.subject, openedAt)
   const isNew = editing === 'new'
 
   return (

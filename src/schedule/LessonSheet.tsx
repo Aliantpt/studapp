@@ -1,23 +1,32 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTerms } from '../profile/context'
-import { dayNames, kindLabels, type Lesson, type LessonDraft, type LessonKind, type WeekRule } from './types'
+import { parseKey, weekday } from './calendar'
+import { kindLabels, type Lesson, type LessonDraft, type LessonKind } from './types'
+
+/** null — закрыто; new — новое занятие на дату; edit — занятие, открытое в конкретный день */
+export type LessonEditing =
+  | { mode: 'new'; date: string; start: string; end: string }
+  | { mode: 'edit'; lesson: Lesson; date: string }
+  | null
 
 type Props = {
-  /** null — закрыто; { day } — новое занятие на этот день */
-  editing: Lesson | { day: number } | null
+  editing: LessonEditing
   subjects: string[]
   onSave: (draft: LessonDraft) => void
-  onDelete: (lesson: Lesson) => void
+  onDelete: (lesson: Lesson, scope: 'day' | 'all') => void
   onClose: () => void
 }
 
-const weekRules: { value: WeekRule; label: string }[] = [
-  { value: 'all', label: 'Каждую' },
-  { value: 'odd', label: 'Нечётные' },
-  { value: 'even', label: 'Чётные' },
+const everyDay = [
+  'каждый понедельник',
+  'каждый вторник',
+  'каждую среду',
+  'каждый четверг',
+  'каждую пятницу',
+  'каждую субботу',
+  'каждое воскресенье',
 ]
-
-const isLesson = (e: Lesson | { day: number }): e is Lesson => 'id' in e
+const dateLong = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' })
 
 export function LessonSheet({ editing, onClose, ...rest }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -42,7 +51,7 @@ export function LessonSheet({ editing, onClose, ...rest }: Props) {
     >
       {editing && (
         <LessonForm
-          key={isLesson(editing) ? editing.id : `new-${editing.day}`}
+          key={editing.mode === 'edit' ? `${editing.lesson.id}-${editing.date}` : `new-${editing.date}`}
           editing={editing}
           titleId={titleId}
           onClose={onClose}
@@ -53,23 +62,32 @@ export function LessonSheet({ editing, onClose, ...rest }: Props) {
   )
 }
 
-type FormProps = Omit<Props, 'editing'> & { editing: Lesson | { day: number }; titleId: string }
+type FormProps = Omit<Props, 'editing'> & { editing: NonNullable<LessonEditing>; titleId: string }
 
 function LessonForm({ editing, titleId, subjects, onSave, onDelete, onClose }: FormProps) {
   const terms = useTerms()
   const ids = useId()
   const [draft, setDraft] = useState<LessonDraft>(() =>
-    isLesson(editing)
-      ? { ...editing }
+    editing.mode === 'edit'
+      ? {
+          date: editing.lesson.date,
+          start: editing.lesson.start,
+          end: editing.lesson.end,
+          subject: editing.lesson.subject,
+          room: editing.lesson.room,
+          teacher: editing.lesson.teacher,
+          kind: editing.lesson.kind,
+          repeat: editing.lesson.repeat,
+        }
       : {
-          day: editing.day,
-          start: terms.slots[0][0],
-          end: terms.slots[0][1],
+          date: editing.date,
+          start: editing.start,
+          end: editing.end,
           subject: '',
           room: '',
           teacher: '',
           kind: null,
-          week: 'all',
+          repeat: 'none',
         },
   )
 
@@ -78,6 +96,8 @@ function LessonForm({ editing, titleId, subjects, onSave, onDelete, onClose }: F
 
   const timeOk = draft.start < draft.end
   const valid = draft.subject.trim() !== '' && timeOk
+  const isEdit = editing.mode === 'edit'
+  const isSeries = isEdit && editing.lesson.repeat === 'weekly'
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -85,11 +105,13 @@ function LessonForm({ editing, titleId, subjects, onSave, onDelete, onClose }: F
     onSave({ ...draft, subject: draft.subject.trim(), room: draft.room.trim(), teacher: draft.teacher.trim() })
   }
 
+  const title = isEdit ? terms.lesson[0].toUpperCase() + terms.lesson.slice(1) : terms.newLesson
+
   return (
     <form className="sheet-form" onSubmit={submit}>
       <div className="sheet-handle" aria-hidden="true" />
       <h2 id={titleId} className="sheet-title">
-        {isLesson(editing) ? terms.lesson[0].toUpperCase() + terms.lesson.slice(1) : terms.newLesson}
+        {title}
       </h2>
 
       <label className="field">
@@ -101,7 +123,7 @@ function LessonForm({ editing, titleId, subjects, onSave, onDelete, onClose }: F
           placeholder={terms.subjectPlaceholder}
           list={`${ids}-subjects`}
           required
-          autoFocus={!isLesson(editing)}
+          autoFocus={!isEdit}
           autoCapitalize="sentences"
         />
         <datalist id={`${ids}-subjects`}>
@@ -112,59 +134,56 @@ function LessonForm({ editing, titleId, subjects, onSave, onDelete, onClose }: F
       </label>
 
       <fieldset className="field">
-        <legend className="field-label">День недели</legend>
-        <div className="days-pick">
-          {dayNames.map((name, i) => (
-            <button
-              key={name}
-              type="button"
-              className="chip"
-              aria-pressed={draft.day === i + 1}
-              onClick={() => set('day', i + 1)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="field">
-        <legend className="field-label">Время</legend>
-        <div className="slots">
-          {terms.slots.map(([start, end], i) => (
-            <button
-              key={start}
-              type="button"
-              className="slot"
-              aria-pressed={draft.start === start && draft.end === end}
-              aria-label={`${i + 1}-й ${terms.lesson}, ${start}–${end}`}
-              onClick={() => setDraft((d) => ({ ...d, start, end }))}
-            >
-              <span className="slot-num">{i + 1}</span>
-              <span className="slot-time">{start}</span>
-            </button>
-          ))}
-        </div>
+        <legend className="field-label">Когда</legend>
+        <input
+          className="input"
+          type="date"
+          aria-label="Дата"
+          value={draft.date}
+          onChange={(e) => e.target.value && set('date', e.target.value)}
+          required
+        />
         <div className="row">
-          <input
-            className="input"
-            type="time"
-            aria-label="Начало"
-            value={draft.start}
-            onChange={(e) => e.target.value && set('start', e.target.value)}
-            required
-          />
-          <input
-            className="input"
-            type="time"
-            aria-label="Конец"
-            value={draft.end}
-            onChange={(e) => e.target.value && set('end', e.target.value)}
-            required
-          />
+          <label className="field">
+            <span className="field-hint">Начало</span>
+            <input
+              className="input"
+              type="time"
+              value={draft.start}
+              onChange={(e) => e.target.value && set('start', e.target.value)}
+              required
+            />
+          </label>
+          <label className="field">
+            <span className="field-hint">Конец</span>
+            <input
+              className="input"
+              type="time"
+              value={draft.end}
+              onChange={(e) => e.target.value && set('end', e.target.value)}
+              required
+            />
+          </label>
         </div>
         {!timeOk && <span className="field-hint field-hint-error">Конец должен быть позже начала.</span>}
       </fieldset>
+
+      <label className="switch">
+        <input
+          type="checkbox"
+          checked={draft.repeat === 'weekly'}
+          onChange={(e) => set('repeat', e.target.checked ? 'weekly' : 'none')}
+        />
+        <span className="switch-text">
+          <span>Повторять каждую неделю</span>
+          <span className="field-hint">
+            {draft.repeat === 'weekly'
+              ? `${everyDay[weekday(draft.date) - 1][0].toUpperCase()}${everyDay[weekday(draft.date) - 1].slice(1)}, начиная с ${dateLong.format(parseKey(draft.date))}`
+              : 'Только в этот день'}
+          </span>
+        </span>
+        <span className="switch-track" aria-hidden="true" />
+      </label>
 
       {terms.hasKinds && (
         <fieldset className="field">
@@ -180,25 +199,6 @@ function LessonForm({ editing, titleId, subjects, onSave, onDelete, onClose }: F
               >
                 {kindLabels[k]}
               </button>
-            ))}
-          </div>
-        </fieldset>
-      )}
-
-      {terms.hasKinds && (
-        <fieldset className="field">
-          <legend className="field-label">По каким неделям</legend>
-          <div className="segmented">
-            {weekRules.map((w) => (
-              <label key={w.value} className="segment">
-                <input
-                  type="radio"
-                  name={`${ids}-week`}
-                  checked={draft.week === w.value}
-                  onChange={() => set('week', w.value)}
-                />
-                <span>{w.label}</span>
-              </label>
             ))}
           </div>
         </fieldset>
@@ -225,12 +225,9 @@ function LessonForm({ editing, titleId, subjects, onSave, onDelete, onClose }: F
         </label>
       </div>
 
+      {isSeries && <p className="field-hint">Изменения применятся ко всем повторам.</p>}
+
       <div className="sheet-actions">
-        {isLesson(editing) && (
-          <button type="button" className="btn btn-ghost-danger" onClick={() => onDelete(editing)}>
-            Удалить
-          </button>
-        )}
         <button type="button" className="btn btn-ghost" onClick={onClose}>
           Отмена
         </button>
@@ -238,6 +235,25 @@ function LessonForm({ editing, titleId, subjects, onSave, onDelete, onClose }: F
           Сохранить
         </button>
       </div>
+
+      {isEdit && (
+        <div className="sheet-danger">
+          {isSeries ? (
+            <>
+              <button type="button" className="btn btn-ghost-danger" onClick={() => onDelete(editing.lesson, 'day')}>
+                Удалить только {dateLong.format(parseKey(editing.date))}
+              </button>
+              <button type="button" className="btn btn-ghost-danger" onClick={() => onDelete(editing.lesson, 'all')}>
+                Удалить все повторы
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn btn-ghost-danger" onClick={() => onDelete(editing.lesson, 'all')}>
+              Удалить
+            </button>
+          )}
+        </div>
+      )}
     </form>
   )
 }
