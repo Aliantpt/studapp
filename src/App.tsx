@@ -3,6 +3,7 @@ import { CalendarDays, MessagesSquare, NotebookPen, ScanLine, UserRound, type Lu
 import { toDateKey } from './planner/dates'
 import { PlannerScreen } from './planner/PlannerScreen'
 import { TermsContext } from './profile/context'
+import { ScannerScreen } from './scanner/ScannerScreen'
 import { ScheduleScreen } from './schedule/ScheduleScreen'
 import { ProfileSheet } from './profile/ProfileSheet'
 import { useProfileState } from './profile/storage'
@@ -18,7 +19,7 @@ type Section = {
   hint: (t: Terms) => string
 }
 
-// планер и расписание готовы, остальное пока заглушки
+// ассистент пока заглушка
 const sections: Section[] = [
   {
     id: 'planner',
@@ -105,6 +106,8 @@ function Main({ profile, onSaveProfile }: MainProps) {
             <PlannerScreen todayKey={toDateKey(today)} now={now} />
           ) : active.id === 'schedule' ? (
             <ScheduleScreen todayKey={toDateKey(today)} now={now} />
+          ) : active.id === 'scanner' ? (
+            <ScannerScreen />
           ) : (
             <div className="empty">
               <span className="empty-icon" aria-hidden="true">

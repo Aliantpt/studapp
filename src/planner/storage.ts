@@ -3,7 +3,7 @@ import type { Task, TaskDraft } from './types'
 
 const KEY = 'studapp.tasks.v1'
 
-function load(): Task[] {
+export function loadTasks(): Task[] {
   try {
     const raw = localStorage.getItem(KEY)
     return raw ? (JSON.parse(raw) as Task[]) : []
@@ -25,14 +25,14 @@ function newId(): string {
 }
 
 export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>(load)
+  const [tasks, setTasks] = useState<Task[]>(loadTasks)
 
   useEffect(() => save(tasks), [tasks])
 
   // синк между вкладками
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY) setTasks(load())
+      if (e.key === KEY) setTasks(loadTasks())
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
