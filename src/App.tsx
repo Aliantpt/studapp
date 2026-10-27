@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CalendarDays, MessagesSquare, NotebookPen, ScanLine, type LucideIcon } from 'lucide-react'
+import { toDateKey } from './planner/dates'
+import { PlannerScreen } from './planner/PlannerScreen'
 
 type Section = {
   id: string
@@ -9,7 +11,7 @@ type Section = {
   hint: string
 }
 
-// пока заглушки, первым прикрутим планер
+// планер готов, остальное пока заглушки
 const sections: Section[] = [
   {
     id: 'planner',
@@ -44,10 +46,26 @@ const sections: Section[] = [
 const weekday = new Intl.DateTimeFormat('ru-RU', { weekday: 'long' })
 const dayMonth = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' })
 
+// текущее время, обновляется раз в 30 секунд и при возврате в приложение
+function useNow() {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const tick = () => setNow(Date.now())
+    const timer = window.setInterval(tick, 30_000)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [])
+  return now
+}
+
 function App() {
   const [activeId, setActiveId] = useState(sections[0].id)
   const active = sections.find((s) => s.id === activeId)!
-  const [today] = useState(() => new Date())
+  const now = useNow()
+  const today = new Date(now)
   const ActiveIcon = active.icon
 
   return (
@@ -59,13 +77,17 @@ function App() {
 
       <main className="screen">
         <h2 className="screen-title">{active.title}</h2>
-        <div className="empty">
-          <span className="empty-icon" aria-hidden="true">
-            <ActiveIcon size={28} strokeWidth={1.75} />
-          </span>
-          <p className="empty-title">{active.empty}</p>
-          <p className="empty-hint">{active.hint}</p>
-        </div>
+        {active.id === 'planner' ? (
+          <PlannerScreen todayKey={toDateKey(today)} now={now} />
+        ) : (
+          <div className="empty">
+            <span className="empty-icon" aria-hidden="true">
+              <ActiveIcon size={28} strokeWidth={1.75} />
+            </span>
+            <p className="empty-title">{active.empty}</p>
+            <p className="empty-hint">{active.hint}</p>
+          </div>
+        )}
       </main>
 
       <nav className="tabbar" aria-label="Разделы">

@@ -13,6 +13,8 @@ export default defineConfig({
       workbox: {
         // в кэш только кириллица и латиница, остальные сабсеты шрифтов не нужны
         globPatterns: ['**/*.{js,css,html,png,svg}', '**/*-{cyrillic,latin}-wght-normal-*.woff2'],
+        // клик по уведомлению
+        importScripts: ['sw-notify.js'],
       },
       manifest: {
         name: 'StudApp — помощник студента',
